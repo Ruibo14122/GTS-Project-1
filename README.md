@@ -64,7 +64,7 @@
 
 # Flatten business_df
 
-business_df = flatten_business(business_df)
+    business_df = flatten_business(business_df)
 
 # Create raw_to_bronze function
     def raw_to_bronze(df, drop_columns=None, if_rating = True):
@@ -82,144 +82,194 @@ business_df = flatten_business(business_df)
 
 # Use raw_to_bronze function to exsisting dfs
 
-business_df = raw_to_bronze(business_df)
+    business_df = raw_to_bronze(business_df)
 
-checkin_df = raw_to_bronze(checkin_df)
+    business_df.show()
 
-tip_df = raw_to_bronze(tip_df)
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/3fbd733b-a4e4-4bf3-a9aa-2c568401e446)
 
-user_df = raw_to_bronze(user_df)
+    checkin_df = raw_to_bronze(checkin_df)
 
-review_df = raw_to_bronze(review_df)
+    checkin_df.show()
+
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/643d80d9-cb80-4d58-9d1f-6c3712403bdc)
+
+    tip_df = raw_to_bronze(tip_df)
+
+    tip_df.show()
+
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/6fe31529-b700-4538-8103-4dc2ddc83864)
+
+    user_df = raw_to_bronze(user_df)
+
+    user_df.show()
+
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/f0f720dd-89bc-433a-9d5a-32b777ccbdfb)
+
+
+    review_df = raw_to_bronze(review_df)
+
+    review_df.show()
+
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/6b39c559-7a26-4c6b-9429-e1b444f42cea)
+
 
 # Question A. How many reviews are there for each business?
 
-review_counts = review_df.groupBy("business_id").agg(count("*").alias("review_count"))
+    review_counts = review_df.groupBy("business_id").agg(count("*").alias("review_count"))
 
-review_counts = review_counts.orderBy(desc("review_count"))
+    review_counts = review_counts.orderBy(desc("review_count"))
+
+    review_counts.show()
+
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/dcc83243-7341-479b-bb1c-20e34cd82328)
 
 
 # Question B. How many businesses take place in each state, In each city? What kind of business do they have the most in each state, in each city ?
 
-# Question B(1). Each state business counts
+## Question B(1). Each state business counts
 
-business_state_counts = business_df.groupBy("state").agg(count("*").alias("state_count"))
+    business_state_counts = business_df.groupBy("state").agg(count("*").alias("state_count"))
 
-business_state_counts = business_state_counts.orderBy(desc("state_count"))
+    business_state_counts = business_state_counts.orderBy(desc("state_count"))
 
-# Question B(2). Each city business counts 
+    business_state_counts.show()
 
-business_city_counts = business_df.groupBy("state","city").agg(count("*").alias("city_count"))
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/e4272582-4509-4ff0-8a7f-b2933bf6a6df)
 
-business_city_counts = business_city_counts.orderBy(desc("city_count"))
 
-# Question B(3) Each state  most frequent business type 
+## Question B(2). Each city business counts 
 
-business_state_category_counts = (
-    business_df
-    .groupBy("state", "categories")
-    .agg(count("*").alias("category_count"))
-    .orderBy("state", desc("category_count"))
-)
+    business_city_counts = business_df.groupBy("state","city").agg(count("*").alias("city_count"))
+
+    business_city_counts = business_city_counts.orderBy(desc("city_count"))
+
+    business_city_counts.show()
+
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/4420175d-9120-44f2-ae4d-1647d3f18cb7)
+
+## Question B(3) Each state  most frequent business type 
+
+    business_state_category_counts = (
+        business_df
+        .groupBy("state", "categories")
+        .agg(count("*").alias("category_count"))
+        .orderBy("state", desc("category_count"))
+    )
 
     # Create a window partitioned by state and ordered by category count in descending order
-window = Window.partitionBy("state").orderBy(desc("category_count"))
+    window = Window.partitionBy("state").orderBy(desc("category_count"))
 
     # Assign row numbers within each state partition
-business_state_category_counts = business_state_category_counts.withColumn("row_number", row_number().over(window))
+    business_state_category_counts = business_state_category_counts.withColumn("row_number", row_number().over(window))
 
-        # Filter to get the top category for each state
-most_frequent_business_category = business_state_category_counts.filter(col("row_number") == 1).drop("row_number")
+    # Filter to get the top category for each state
+    most_frequent_business_category = business_state_category_counts.filter(col("row_number") == 1).drop("row_number")
 
-#Question B(4) Each city within each state most frequent business type
-business_city_state_category_counts = (
-    business_df
-    .groupBy("state", "city", "categories")
-    .agg(count("*").alias("category_count"))
-    .orderBy("state", "city", desc("category_count"))
-)
-        # Create a window partitioned by state and city and ordered by category count in descending order
-window = Window.partitionBy("state", "city").orderBy(desc("category_count"))
+    most_frequent_business_category.show()
 
-        # Assign row numbers within each state and city partition
-business_city_state_category_counts = business_city_state_category_counts.withColumn("row_number", row_number().over(window))
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/0bba08f0-6c3c-4fc7-94c2-d587f151e1d9)
 
-        # Filter to get the top category for each city within each state
-most_frequent_business_category_by_city = business_city_state_category_counts.filter(col("row_number") == 1).drop("row_number")
 
-#Question C. What time do people usually write reviews? 
-review_df = review_df.withColumn("timestamp", to_timestamp(col("date"), "yyyy-MM-dd HH:mm:ss"))
+## Question B(4) Each city within each state most frequent business type
+    business_city_state_category_counts = (
+        business_df
+        .groupBy("state", "city", "categories")
+        .agg(count("*").alias("category_count"))
+        .orderBy("state", "city", desc("category_count"))
+    )
+    # Create a window partitioned by state and city and ordered by category count in descending order
+    window = Window.partitionBy("state", "city").orderBy(desc("category_count"))
 
+    # Assign row numbers within each state and city partition
+    business_city_state_category_counts = business_city_state_category_counts.withColumn("row_number", row_number().over(window))
+
+    # Filter to get the top category for each city within each state
+    most_frequent_business_category_by_city = business_city_state_category_counts.filter(col("row_number") == 1).drop("row_number")
+
+    most_frequent_business_category_by_city.show()
+
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/95cc0bdd-6bd1-41fa-a1c7-8891be322f87)
+
+
+# Question C. What time do people usually write reviews? 
+
+    review_df = review_df.withColumn("timestamp", to_timestamp(col("date"), "yyyy-MM-dd HH:mm:ss"))
+    
     # Extract the hour from the timestamp
-review_df = review_df.withColumn("hour", hour(col("timestamp")))
+    review_df = review_df.withColumn("hour", hour(col("timestamp")))
 
     # Filter out rows where 'hour' is null
-review_not_null_df = review_df.filter(col("hour").isNotNull())
+    review_not_null_df = review_df.filter(col("hour").isNotNull())
 
     # Count the number of reviews per hour and order by count in descending order
 
-review_hour_rank = review_not_null_df.groupBy("hour").count().orderBy(col("count").desc())
+    review_hour_rank = review_not_null_df.groupBy("hour").count().orderBy(col("count").desc())
 
     # Display the result to find the most common hours for writing reviews
     
-review_hour_rank.show()
+    review_hour_rank.show()
 
-    # Reviews are most frequently written in the evening hours, particularly between 6 PM and 11 PM. 
-    # The peak activity occurs at 6 PM and 7 PM
-    # Suggesting that many users tend to write reviews after typical work hours
-    # Possibly reflecting on their dining experiences during dinner time.
+![image](https://github.com/Ruibo14122/GTS-Project-1/assets/109299913/c0215a7d-d197-44fc-a841-23d1ebdaef79)
 
-#Create bronze_to_silver functionss(type2 SCD, combining multiple bronze tables into 1)
 
-def bronze_to_silver(business_df, checkin_df, tip_df, user_df, review_df, existing_silver_df=None):
-    # First, combine the new datasets
-    silver_df = business_df.join(checkin_df, "business_id", "outer") \
-                           .join(tip_df, "business_id", "outer") \
-                           .join(user_df, "user_id", "outer") \
-                           .join(review_df, "business_id", "outer")
+    Reviews are most frequently written in the evening hours, particularly between 6 PM and 11 PM. 
+    The peak activity occurs at 6 PM and 7 PM
+    Suggesting that many users tend to write reviews after typical work hours
+    Possibly reflecting on their dining experiences during dinner time.
+
+# Create bronze_to_silver functionss(type2 SCD, combining multiple bronze tables into 1)
+
+    def bronze_to_silver(business_df, checkin_df, tip_df, user_df, review_df, existing_silver_df=None):
+        # First, combine the new datasets
+        silver_df = business_df.join(checkin_df, "business_id", "outer") \
+                               .join(tip_df, "business_id", "outer") \
+                               .join(user_df, "user_id", "outer") \
+                               .join(review_df, "business_id", "outer")
     
-    # Add SCD Type 2 columns: effective_date, end_date, is_current, and version
-    silver_df = silver_df.withColumn("effective_date", current_timestamp()) \
-                         .withColumn("end_date", lit(None).cast("timestamp")) \
-                         .withColumn("is_current", lit(True)) \
-                         .withColumn("version", lit(1))
+        # Add SCD Type 2 columns: effective_date, end_date, is_current, and version
+        silver_df = silver_df.withColumn("effective_date", current_timestamp()) \
+                             .withColumn("end_date", lit(None).cast("timestamp")) \
+                             .withColumn("is_current", lit(True)) \
+                             .withColumn("version", lit(1))
     
-    # If an existing silver table is provided, merge it with the new data to apply SCD Type 2 logic
-    if existing_silver_df:
-        # Determine the changed records in the new data
-        # You may need to define a more complex condition to compare the differences in records
-        changed_records = silver_df.join(existing_silver_df, "business_id", "inner") \
-                                   .filter(silver_df["column_to_compare"] != existing_silver_df["column_to_compare"]) \
-                                   .select(silver_df["*"])
+        # If an existing silver table is provided, merge it with the new data to apply SCD Type 2 logic
+        if existing_silver_df:
+            # Determine the changed records in the new data
+            # You may need to define a more complex condition to compare the differences in records
+            changed_records = silver_df.join(existing_silver_df, "business_id", "inner") \
+                                       .filter(silver_df["column_to_compare"] != existing_silver_df["column_to_compare"]) \
+                                       .select(silver_df["*"])
         
-        # Update the existing records: set end_date and is_current for changed records
-        windowSpec = Window.partitionBy("business_id").orderBy(desc("effective_date"))
-        existing_silver_df = existing_silver_df.withColumn("row_number", row_number().over(windowSpec)) \
-                                               .withColumn("end_date", when(col("row_number") == 1, current_timestamp()).otherwise(col("end_date"))) \
-                                               .withColumn("is_current", when(col("row_number") == 1, lit(False)).otherwise(col("is_current"))) \
-                                               .drop("row_number")
+            # Update the existing records: set end_date and is_current for changed records
+            windowSpec = Window.partitionBy("business_id").orderBy(desc("effective_date"))
+            existing_silver_df = existing_silver_df.withColumn("row_number", row_number().over(windowSpec)) \
+                                                   .withColumn("end_date", when(col("row_number") == 1, current_timestamp()).otherwise(col("end_date"))) \
+                                                   .withColumn("is_current", when(col("row_number") == 1, lit(False)).otherwise(col("is_current"))) \
+                                                   .drop("row_number")
         
-        # Add the changed records to the existing silver table
-        silver_df = existing_silver_df.unionByName(changed_records)
+            # Add the changed records to the existing silver table
+            silver_df = existing_silver_df.unionByName(changed_records)
     
-    return silver_df
+        return silver_df
 
 # Apply the transformation function to the datasets
-silver_table = bronze_to_silver(business_df, checkin_df, tip_df, user_df, review_df)
+
+    silver_table = bronze_to_silver(business_df, checkin_df, tip_df, user_df, review_df)
 
 
-#Save all the work to DBFS
+# Save all the work to DBFS
 
-# Define the base path for Delta tables
-base_path = "dbfs:/user/hive/warehouse"
+## Define the base path for Delta tables
+    base_path = "dbfs:/user/hive/warehouse"
 
-# Save the 'raw to bronze' DataFrames
-business_df.write.format("delta").mode("overwrite").save(f"{base_path}/business_bronze")
-checkin_df.write.format("delta").mode("overwrite").save(f"{base_path}/checkin_bronze")
-tip_df.write.format("delta").mode("overwrite").save(f"{base_path}/tip_bronze")
-user_df.write.format("delta").mode("overwrite").save(f"{base_path}/user_bronze")
-review_df.write.format("delta").mode("overwrite").save(f"{base_path}/review_bronze")
+## Save the 'raw to bronze' DataFrames
+    business_df.write.format("delta").mode("overwrite").save(f"{base_path}/business_bronze")
+    checkin_df.write.format("delta").mode("overwrite").save(f"{base_path}/checkin_bronze")
+    tip_df.write.format("delta").mode("overwrite").save(f"{base_path}/tip_bronze")
+    user_df.write.format("delta").mode("overwrite").save(f"{base_path}/user_bronze")
+    review_df.write.format("delta").mode("overwrite").save(f"{base_path}/review_bronze")
 
-# Save the 'bronze to silver' DataFrame
-silver_table.write.format("delta").mode("overwrite").save(f"{base_path}/silver")
+## Save the 'bronze to silver' DataFrame
+    silver_table.write.format("delta").mode("overwrite").save(f"{base_path}/silver")
 
